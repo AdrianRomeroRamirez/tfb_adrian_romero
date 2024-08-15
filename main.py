@@ -35,6 +35,7 @@ model = GPT2LMHeadModel.from_pretrained('./models/myModelgpt2')
 def generar_respuesta(input_text, tipo_pregunta):
     prompt = (
         f"Responde a la siguiente pregunta de manera útil y concisa, considerando el tipo de pregunta especificado. "
+        f"Pregunta: {input_text}. "
         f"Tipo de pregunta: {tipo_pregunta}. "
         f"Respuesta:"
     )
