@@ -28,22 +28,31 @@ def obtener_vector_promedio(texto, model_w2v):
         vector_promedio = vectores_palabras.mean(axis=0)
     return vector_promedio
 
-# Cargar el modelo GPT-2 para generación de texto
-tokenizer = GPT2Tokenizer.from_pretrained('./models/myModelgpt2')
-model = GPT2LMHeadModel.from_pretrained('./models/myModelgpt2')
+def predecir_tipo_pregunta(input_text):
+    with open('../model/model.pkl', 'rb') as file:
+      modelo_rf_unbalanced = pickle.load(file)
+
+    model_w2v = Word2Vec.load("../models/word2vec.model")
+
+    texto_limpio = limpiar_texto(input_text)
+    input_data = obtener_vector_promedio(texto_limpio, model_w2v)
+    input_data = np.array([input_data])
+    prediction = modelo_rf_unbalanced.predict(input_data)
+    return prediction[0]
 
 def generar_respuesta(input_text, tipo_pregunta):
+    tokenizer = GPT2Tokenizer.from_pretrained('../models/myModelgpt2')
+    model = GPT2LMHeadModel.from_pretrained('../models/myModelgpt2')
+
     prompt = (
-        f"Responde a la siguiente pregunta de manera útil y concisa, considerando el tipo de pregunta especificado. "
-        f"Pregunta: {input_text}. "
-        f"Tipo de pregunta: {tipo_pregunta}. "
-        f"Respuesta:"
+        f"Answer the following question in a helpful and concise manner, considering the specified question type. "
+        f"Question: {input_text}. "
+        f"Question type: {tipo_pregunta}. "
+        f"Answer:"
     )
     
-    # Encode the prompt
     inputs = tokenizer(prompt, return_tensors='pt', truncation=True, max_length=512)
     
-    # Generate response
     with torch.no_grad():
         outputs = model.generate(
             inputs['input_ids'],
@@ -52,40 +61,17 @@ def generar_respuesta(input_text, tipo_pregunta):
             num_return_sequences=1,
             no_repeat_ngram_size=2,
             do_sample=True,
-            top_k=30,
+            top_k=25,
             top_p=0.95,
-            temperature=0.7,  # Lower temperature for more deterministic results
-            pad_token_id=tokenizer.eos_token_id  # Use eos_token_id for padding
+            temperature=0.7,
+            pad_token_id=tokenizer.eos_token_id
         )
     
-    # Decode the response
     respuesta = tokenizer.decode(outputs[0], skip_special_tokens=True)
     respuesta = respuesta.replace(prompt, "").strip()
+
+    # Post-procesamiento básico para encontrar el último punto
+    ultimo_punto = respuesta.rfind('.')
+    if ultimo_punto != -1:
+        respuesta = respuesta[:ultimo_punto+1]
     return respuesta
-
-def predecir_tipo_pregunta(input_text, modelo_rf_unbalanced, model_w2v):
-    texto_limpio = limpiar_texto(input_text)
-    input_data = obtener_vector_promedio(texto_limpio, model_w2v)
-    input_data = np.array([input_data])
-    prediction = modelo_rf_unbalanced.predict(input_data)
-    return prediction[0]
-
-def main():
-    # Cargar el modelo desde el archivo
-    with open('model/model.pkl', 'rb') as file:
-        modelo_rf_unbalanced = pickle.load(file)
-        
-    # Cargar el modelo Word2Vec
-    model_w2v = Word2Vec.load("./models/word2vec.model")
-    
-    input_text = input("Ingresa el texto para hacer la predicción: ")
-    
-    tipo_pregunta = predecir_tipo_pregunta(input_text, modelo_rf_unbalanced, model_w2v)
-    
-    # Generar una respuesta usando GPT-2
-    respuesta = generar_respuesta(input_text, tipo_pregunta)
-
-    print("Respuesta:", respuesta)
-
-if __name__ == "__main__":
-    main()
