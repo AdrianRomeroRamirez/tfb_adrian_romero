@@ -60,7 +60,8 @@ def generar_respuesta(input_text, tipo_pregunta):
     
     # Decode the response
     respuesta = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return respuesta.strip()
+    respuesta = respuesta.replace(prompt, "").strip()
+    return respuesta
 
 def predecir_tipo_pregunta(input_text, modelo_rf_unbalanced, model_w2v):
     texto_limpio = limpiar_texto(input_text)
